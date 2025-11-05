@@ -1,14 +1,13 @@
 {
-  "name": "collegeelections-backend",
+  "name": "server",
   "version": "1.0.0",
-  "description": "Unified backend + frontend server for College Election System",
+  "description": "Backend for College Election System",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon server.js",
-    "dev:prod": "cross-env NODE_ENV=production nodemon server.js",
     "start": "node server.js",
-    "render-build": "npm --prefix ../../client ci && npm --prefix ../../client run build"
+    "render-build": "cd ../../client && npm ci && npm run build"
   },
   "keywords": [],
   "author": "Sharvari Gajendragadkar",
@@ -25,7 +24,7 @@
     "validator": "^13.15.15"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "cross-env": "^7.0.3"
   }
 }
