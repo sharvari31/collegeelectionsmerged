@@ -14,11 +14,11 @@ export default function Register() {
   const [group, setGroup] = useState(
     ["student", "teacher", "nonteaching"].includes(presetRole) ? presetRole : ""
   );
+  const [memberId, setMemberId] = useState(""); // NEW: 10-digit id
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // If already logged in, route them where they belong
   useEffect(() => {
     const me = getUserFromToken();
     if (me) {
@@ -33,12 +33,17 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // 1) Try to register
+      // quick client-side validation
+      const needsId = true; // students/teachers/nonteaching all require id here
+      if (needsId && !/^\d{10}$/.test(memberId)) {
+        throw new Error("College ID must be exactly 10 digits");
+      }
+
       const res = await fetch(`${API}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, email, password, group }), // backend should default role="user"
+        body: JSON.stringify({ name, email, password, group, memberId }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -46,7 +51,6 @@ export default function Register() {
         throw new Error(data.message || `Registration failed (${res.status})`);
       }
 
-      // Some backends return token on register; if so, use it
       if (data.token) {
         localStorage.setItem("token", data.token);
         const user = parseJwt(data.token);
@@ -54,12 +58,12 @@ export default function Register() {
         return;
       }
 
-      // 2) If no token came back, auto login
+      // Fallback: auto login
       const loginRes = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ memberId, password }),
       });
       const loginData = await loginRes.json().catch(() => ({}));
       if (!loginRes.ok || !loginData.token) {
@@ -113,6 +117,28 @@ export default function Register() {
               className="w-full rounded-lg border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300"
               placeholder="you@college.edu"
             />
+          </div>
+
+          {/* NEW: College ID */}
+          <div>
+            <label className="block text-sm text-gray-700 mb-1">College ID (10 digits)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="\d{10}"
+              maxLength={10}
+              required
+              value={memberId}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setMemberId(v);
+              }}
+              className="w-full rounded-lg border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300"
+              placeholder="e.g., 2300123456"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Students/Teachers/Non-Teaching staff must use their 10-digit College ID.
+            </p>
           </div>
 
           <div>

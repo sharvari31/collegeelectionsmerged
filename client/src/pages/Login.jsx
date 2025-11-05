@@ -1,4 +1,3 @@
-// client/src/pages/Login.jsx
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { parseJwt } from "../utils/auth";
@@ -6,7 +5,7 @@ import { parseJwt } from "../utils/auth";
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [emailOrId, setEmailOrId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -30,15 +29,21 @@ export default function Login() {
     navigate("/elections", { replace: true });
   };
 
+  const isTenDigitId = (s) => /^\d{10}$/.test(String(s || "").trim());
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
     try {
+      const body = isTenDigitId(emailOrId)
+        ? { memberId: String(emailOrId).trim(), password }
+        : { email: String(emailOrId).trim(), password };
+
       const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
         credentials: "include",
       });
 
@@ -68,13 +73,14 @@ export default function Login() {
         )}
 
         <label className="block mb-3">
-          <span className="text-gray-700">Email</span>
+          <span className="text-gray-700">Email or College ID (10 digits)</span>
           <input
-            type="email"
+            type="text"
             className="mt-1 w-full border rounded-lg p-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={emailOrId}
+            onChange={(e) => setEmailOrId(e.target.value)}
             required
+            placeholder="you@college.edu  or  2300123456"
           />
         </label>
 

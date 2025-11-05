@@ -1,3 +1,4 @@
+// backend/server/server.js
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -12,6 +13,10 @@ import electionRoutes from "./routes/election.routes.js";
 import candidateRoutes from "./routes/candidate.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import resultsRoutes from "./routes/results.routes.js";
+
+// ⬇️ for serving the built frontend in production
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
@@ -29,7 +34,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(morgan("dev"));
 
-// ✅ Mount routes
+// ✅ API routes
 app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/votes", voteRoutes);
@@ -37,6 +42,21 @@ app.use("/api/elections", electionRoutes);
 app.use("/api/candidates", candidateRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/results", resultsRoutes);
+
+// ⬇️ Serve frontend build when running in production (Render, etc.)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (process.env.NODE_ENV === "production") {
+  // path to: <repo-root>/client/dist
+  const frontendPath = path.join(__dirname, "../../client/dist");
+  app.use(express.static(frontendPath));
+
+  // let React Router handle remaining routes
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  });
+}
 
 const PORT = process.env.PORT || 5000;
 

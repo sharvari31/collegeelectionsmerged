@@ -71,6 +71,7 @@ export const listAllCandidates = async (req, res) => {
  * POST /api/candidates/apply
  * - Uses new canonical field `user`
  * - Back-compat: reads any old docs saved with `userId`
+ * - Surfaces friendly 409s for duplicate seat applications
  */
 export const applyCandidate = async (req, res) => {
   try {
@@ -97,18 +98,30 @@ export const applyCandidate = async (req, res) => {
 
     if (!doc) {
       // Create using the new field name
-      doc = await Candidate.create({
-        user,                  // ✅ canonical
-        name: name.trim(),
-        group,
-        position,
-        department,
-        manifesto,
-        photoUrl,
-        status: "pending",
-        disqualified: false,
-      });
-      return res.json({ message: "Application submitted", candidate: doc });
+      try {
+        doc = await Candidate.create({
+          user,                // ✅ canonical
+          name: name.trim(),
+          group,
+          position,
+          department,
+          manifesto,
+          photoUrl,
+          status: "pending",
+          disqualified: false,
+        });
+        return res.json({ message: "Application submitted", candidate: doc });
+      } catch (err) {
+        // Handle duplicate key errors from schema unique indexes
+        if (err?.code === 11000) {
+          return res.status(409).json({
+            message:
+              "Duplicate application detected: either you already applied for this seat, or a candidate with the same name already exists for this seat.",
+          });
+        }
+        console.error("applyCandidate(create) error:", err);
+        return res.status(500).json({ message: "Failed to submit application" });
+      }
     }
 
     if (doc.status === "approved") {
@@ -125,11 +138,22 @@ export const applyCandidate = async (req, res) => {
     // If the old doc was legacy-only (had userId but no user), set user now
     if (!doc.user) doc.user = user;
 
-    await doc.save();
-    res.json({ message: "Application updated", candidate: doc });
+    try {
+      await doc.save();
+      return res.json({ message: "Application updated", candidate: doc });
+    } catch (err) {
+      if (err?.code === 11000) {
+        return res.status(409).json({
+          message:
+            "Duplicate conflict while updating: this seat already has the same candidate, or you already have an application for this seat.",
+        });
+      }
+      console.error("applyCandidate(save) error:", err);
+      return res.status(500).json({ message: "Failed to submit application" });
+    }
   } catch (err) {
     console.error("applyCandidate error:", err);
-    res.status(500).json({ message: "Failed to submit application" });
+    return res.status(500).json({ message: "Failed to submit application" });
   }
 };
 

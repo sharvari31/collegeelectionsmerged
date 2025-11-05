@@ -14,13 +14,16 @@ export const USER_ROLES = [
   "candidate",
   "voter",
 
-  // keep legacy roles so existing code continues to work
+  // legacy roles kept for backward compatibility
   "student",
   "teacher",
   "nonteaching",
 ];
 
 export const USER_GROUPS = ["student", "teacher", "nonteaching"];
+
+// roles that DO NOT require a college id
+const ADMIN_LIKE = new Set(["superadmin", "studentAdmin", "teacherAdmin", "nonTeachingAdmin"]);
 
 const userSchema = new mongoose.Schema(
   {
@@ -34,31 +37,38 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // NEW: 10-digit College ID (required for non-admin users)
+    memberId: {
+      type: String,
+      trim: true,
+      // required for non-admins only
+      required: function () {
+        return !ADMIN_LIKE.has(this.role || "student");
+      },
+      match: [/^\d{10}$/, "College ID must be exactly 10 digits"],
+      unique: false, // we set index below to avoid migration explosions; see index notes
+      sparse: true,
+    },
+
     password: {
       type: String,
       required: true,
       minlength: 6,
-      select: false, // don’t return by default
+      select: false,
     },
 
     /**
      * role
-     * - voters/candidates typically use: "voter" or "candidate"
-     * - admins: "studentAdmin" | "teacherAdmin" | "nonTeachingAdmin"
-     * - top-level: "superadmin"
-     * - legacy roles kept for backward compatibility: "student" | "teacher" | "nonteaching"
      */
     role: {
       type: String,
       enum: USER_ROLES,
-      default: "student", // keep current behaviour
+      default: "student",
       index: true,
     },
 
     /**
-     * group identifies which council a user belongs to (for voters/candidates)
-     * student | teacher | nonteaching
-     * For admins it can be null (except council-specific admins where it’s helpful).
+     * group identifies which council a user belongs to
      */
     group: {
       type: String,
@@ -66,7 +76,6 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
-    // optional: department for teachers / non-teaching roles
     department: { type: String, default: "" },
   },
   { timestamps: true }
@@ -84,5 +93,11 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
+
+// Indexes
+// Keep email unique
+userSchema.index({ email: 1 }, { unique: true });
+// Make memberId unique where present (sparse allows old docs without memberId)
+userSchema.index({ memberId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model("User", userSchema);
