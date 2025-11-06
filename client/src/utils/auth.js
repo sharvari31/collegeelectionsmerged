@@ -1,7 +1,7 @@
 // client/src/utils/auth.js
 
 // ---- API base ----
-export const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+export const API = import.meta.env.VITE_API_URL || "";
 
 // ---- Token helpers ----
 export const getToken = () => localStorage.getItem("token") || "";

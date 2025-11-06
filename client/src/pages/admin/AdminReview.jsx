@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getToken } from "../../utils/auth";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL || "";
 
 const GROUPS = [
   { value: "", label: "All Groups" },
